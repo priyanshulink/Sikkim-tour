@@ -31,12 +31,14 @@ Monastery-Prototype-main/
 
 The primary interface for tourists, pilgrims, and researchers.
 
-- **key Features:**
+- **Key Features:**
   - 🏰 **Virtual Tours:** 360° immersive experiences of monasteries.
   - 📅 **Events Calendar:** Track festivals and ceremonies.
   - 🤖 **AI Chatbot:** Gemini-powered assistant for heritage queries.
   - 🎒 **Itinerary Planner:** Custom travel planning tools.
   - 👥 **Community:** Share stories, photos, and videos.
+  - 🙏 **Monks Life:** Explore the daily life, traditions, and wisdom of Buddhist monks.
+  - 📚 **Learn Sikkim:** Educational content about Sikkim's rich culture, history, and heritage.
 
 [👉 View Full Documentation](./mern-app/README.md)
 
