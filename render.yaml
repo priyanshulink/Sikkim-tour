@@ -1,0 +1,68 @@
+services:
+  # Main MERN Backend
+  - type: web
+    name: sikkim-tour-backend
+    runtime: node
+    region: oregon
+    plan: free
+    buildCommand: cd mern-app/server && npm install
+    startCommand: cd mern-app/server && node app.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: GEMINI_API_KEY
+        value: AIzaSyC902oeRirX6z9FCzWzkCg9J_uv8HxyWEI
+      - key: PYTHON_SERVICE_URL
+        value: http://localhost:5001
+
+  # Frontend (Static Site)
+  - type: web
+    name: sikkim-tour-frontend
+    runtime: node
+    region: oregon
+    plan: free
+    buildCommand: cd mern-app/client && npm install && npm run build
+    staticPublishPath: ./mern-app/client/dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://sikkim-tour-backend.onrender.com/api
+
+  # Monastery Preservation Backend
+  - type: web
+    name: monastery-preservation-backend
+    runtime: node
+    region: oregon
+    plan: free
+    buildCommand: cd Monastery-Preservation/backend && npm install
+    startCommand: cd Monastery-Preservation/backend && node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: MONGODB_URI
+        sync: false
+      - key: PYTHON_SERVICE_URL
+        value: https://monastery-python-service.onrender.com
+      - key: CLIENT_URL
+        value: https://sikkim-tour-frontend.onrender.com
+
+  # Python AI Service
+  - type: web
+    name: monastery-python-service
+    runtime: python
+    region: oregon
+    plan: free
+    buildCommand: cd Monastery-Preservation/python-service && pip install -r requirements.txt
+    startCommand: cd Monastery-Preservation/python-service && python app.py
+    envVars:
+      - key: PORT
+        value: 5001
+      - key: FLASK_ENV
+        value: production
