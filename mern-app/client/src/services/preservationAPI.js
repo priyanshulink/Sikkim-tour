@@ -42,7 +42,7 @@ export const compareImages = async (baselineFile, comparisonFile, metadata = {})
     };
 
     const response = await axios.post(
-      `${API_URL}/preservation/compare`,
+      `${API_URL}/comparisons`,
       formData,
       config
     );
@@ -65,10 +65,9 @@ export const compareImages = async (baselineFile, comparisonFile, metadata = {})
  */
 export const checkHealth = async () => {
   try {
-    const response = await axios.get(
-      `${API_URL}/preservation/health`,
-      getAuthConfig()
-    );
+    // Health endpoint is at root /health, not /api/health
+    const healthUrl = API_URL.replace('/api', '/health');
+    const response = await axios.get(healthUrl);
     return response.data;
   } catch (error) {
     return {
