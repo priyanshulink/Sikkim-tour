@@ -91,11 +91,42 @@ const FloatingChatbot = () => {
       }
     } catch (error) {
       console.error('Chatbot error:', error);
+      let errorMessage = 'Sorry, I encountered an error. Try switching to Offline Mode for instant responses!';
+      let autoSwitchToOffline = false;
+      
+      if (error.response?.status === 429) {
+        const useOfflineMode = error.response?.data?.useOfflineMode;
+        
+        if (useOfflineMode) {
+          errorMessage = '⏳ API quota exhausted. Switching to Offline Mode...';
+          autoSwitchToOffline = true;
+        } else {
+          errorMessage = '⏳ Too many requests. Please wait a minute or switch to Offline Mode.';
+        }
+      } else if (error.response?.status === 503) {
+        errorMessage = '⚙️ Service unavailable. Please use Offline Mode.';
+      } else if (error.response?.status === 504) {
+        errorMessage = '⏱️ Request timeout. Please try again.';
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      
       setMessages(prev => [...prev, {
         type: 'bot',
-        text: error.response?.data?.message || 'Sorry, I encountered an error. Try switching to Offline Mode for instant responses!'
+        text: errorMessage
       }]);
       setLoading(false);
+      
+      // Auto-switch to offline mode if quota exhausted
+      if (autoSwitchToOffline) {
+        setTimeout(() => {
+          setIsOfflineMode(true);
+          setMessages(prev => [...prev, { 
+            type: 'system', 
+            text: '✅ Now in Offline Mode with instant responses!' 
+          }]);
+        }, 1500);
+      }
     }
   };
 

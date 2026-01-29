@@ -81,8 +81,39 @@ const Chatbot = () => {
         setLoading(false);
       }
     } catch (error) {
-      setMessages(prev => [...prev, { type: 'bot', text: 'Sorry, I encountered an error. Please try again or switch to Offline Mode.' }]);
+      console.error('Chat error:', error);
+      let errorMessage = 'Sorry, I encountered an error. Please try again or switch to Offline Mode.';
+      let autoSwitchToOffline = false;
+      
+      if (error.response?.status === 429) {
+        const retryAfter = error.response?.data?.retryAfter || 60;
+        const useOfflineMode = error.response?.data?.useOfflineMode;
+        
+        if (useOfflineMode) {
+          errorMessage = `⏳ API quota exhausted. Automatically switching to Offline Mode...`;
+          autoSwitchToOffline = true;
+        } else {
+          errorMessage = `⏳ Too many requests. Please wait ${retryAfter} seconds or use Offline Mode.`;
+        }
+      } else if (error.response?.status === 503) {
+        errorMessage = '⚙️ Service temporarily unavailable. Please try using Offline Mode.';
+      } else if (error.response?.status === 504) {
+        errorMessage = '⏱️ Request timeout. Please try again.';
+      }
+      
+      setMessages(prev => [...prev, { type: 'bot', text: errorMessage }]);
       setLoading(false);
+      
+      // Auto-switch to offline mode if quota exhausted
+      if (autoSwitchToOffline) {
+        setTimeout(() => {
+          setIsOfflineMode(true);
+          setMessages(prev => [...prev, { 
+            type: 'system', 
+            text: '✅ Switched to Offline Mode. You can now continue chatting with instant responses!' 
+          }]);
+        }, 1500);
+      }
     }
   };
 

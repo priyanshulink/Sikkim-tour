@@ -1,5 +1,58 @@
 const axios = require('axios');
 
+// Rate limiting configuration
+const rateLimiter = {
+  requests: [],
+  maxRequestsPerMinute: 10, // Conservative limit to stay under API quota
+  cleanupInterval: null,
+  isQuotaExhausted: false,
+  quotaResetTime: null
+};
+
+// Initialize cleanup interval
+if (!rateLimiter.cleanupInterval) {
+  rateLimiter.cleanupInterval = setInterval(() => {
+    const oneMinuteAgo = Date.now() - 60000;
+    rateLimiter.requests = rateLimiter.requests.filter(time => time > oneMinuteAgo);
+  }, 10000); // Cleanup every 10 seconds
+}
+
+// Check if rate limit is exceeded
+const checkRateLimit = () => {
+  const oneMinuteAgo = Date.now() - 60000;
+  rateLimiter.requests = rateLimiter.requests.filter(time => time > oneMinuteAgo);
+  return rateLimiter.requests.length >= rateLimiter.maxRequestsPerMinute;
+};
+
+// Add request to rate limiter
+const addRequest = () => {
+  rateLimiter.requests.push(Date.now());
+};
+
+// Sleep function for retry delays
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Make Gemini API call (no retries for 429 - quota exhausted)
+const callGeminiAPI = async (url, data) => {
+  try {
+    const response = await axios.post(url, data, {
+      timeout: 30000 // 30 second timeout
+    });
+    // Reset quota exhausted flag on success
+    rateLimiter.isQuotaExhausted = false;
+    rateLimiter.quotaResetTime = null;
+    return response;
+  } catch (error) {
+    if (error.response?.status === 429) {
+      // Mark quota as exhausted for 60 seconds
+      rateLimiter.isQuotaExhausted = true;
+      rateLimiter.quotaResetTime = Date.now() + 60000;
+      console.log('API quota exhausted. Blocking requests for 60 seconds.');
+    }
+    throw error;
+  }
+};
+
 // @desc    Chat with Gemini AI
 // @route   POST /api/chatbot/chat
 // @access  Public
@@ -14,10 +67,40 @@ exports.chat = async (req, res) => {
       });
     }
 
+    // Check if quota is exhausted
+    if (rateLimiter.isQuotaExhausted) {
+      const timeRemaining = Math.ceil((rateLimiter.quotaResetTime - Date.now()) / 1000);
+      if (timeRemaining > 0) {
+        return res.status(429).json({
+          success: false,
+          message: `API quota exhausted. Please wait ${timeRemaining} seconds or use Offline Mode.`,
+          retryAfter: timeRemaining,
+          useOfflineMode: true
+        });
+      } else {
+        // Reset quota exhausted status
+        rateLimiter.isQuotaExhausted = false;
+        rateLimiter.quotaResetTime = null;
+      }
+    }
+
+    // Check rate limit before making request
+    if (checkRateLimit()) {
+      return res.status(429).json({
+        success: false,
+        message: 'Too many requests. Please wait a moment and try again or use Offline Mode.',
+        retryAfter: 60, // seconds
+        useOfflineMode: true
+      });
+    }
+
+    // Add request to rate limiter
+    addRequest();
+
     // Call Google Gemini API using v1beta API with gemini-2.5-flash model
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
     
-    const geminiResponse = await axios.post(geminiUrl, {
+    const geminiResponse = await callGeminiAPI(geminiUrl, {
       contents: [{
         parts: [{
           text: `You are a knowledgeable assistant specializing in Sikkim's monastery heritage, Buddhist culture, and historical preservation.
@@ -70,9 +153,33 @@ If the question is not related to monasteries or Sikkim's heritage, politely red
     });
   } catch (error) {
     console.error('Gemini API Error:', error.response?.data || error.message);
+    
+    // Handle specific error cases
+    if (error.response?.status === 429) {
+      return res.status(429).json({
+        success: false,
+        message: 'API rate limit exceeded. Please wait a minute before trying again.',
+        retryAfter: 60
+      });
+    }
+    
+    if (error.response?.status === 403) {
+      return res.status(503).json({
+        success: false,
+        message: 'API access denied. Please check your API key configuration.'
+      });
+    }
+    
+    if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
+      return res.status(504).json({
+        success: false,
+        message: 'Request timeout. Please try again.'
+      });
+    }
+    
     res.status(500).json({
       success: false,
-      message: 'Failed to get response from AI. Please try again.',
+      message: 'Failed to get response from AI. Please try again later.',
       error: error.response?.data?.error?.message || error.message
     });
   }
