@@ -196,8 +196,7 @@ const Login = () => {
           {!isSignup && (
             <div style={{ marginTop: '20px', textAlign: 'center', fontSize: '14px', color: '#666' }}>
               <p><strong>Demo Credentials:</strong></p>
-              <p>Admin: admin@monastery.com / admin123</p>
-              <p>User: user@monastery.com / user123</p>
+              <p>Admin: admin@sikkim.com / admin123</p>
             </div>
           )}
 
