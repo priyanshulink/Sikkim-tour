@@ -42,7 +42,7 @@ export const compareImages = async (baselineFile, comparisonFile, metadata = {})
     };
 
     const response = await axios.post(
-      `${API_URL}/comparisons`,
+      `${API_URL}/comparisons/compare`,
       formData,
       config
     );
